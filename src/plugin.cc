@@ -296,7 +296,36 @@ namespace dynamicgraph
 	logTime (t0_, t1_);
 	return true;
       }
-      
+
+       void updateSensorsIn(map<string,SensorValues> & sensorsIn, AbstractSotExternalInterface * sotController)
+       {
+            const dynamicgraph::Matrix attitude = sotController->getAttitude();
+            const dynamicgraph::Vector zmp = sotController->getZmp();
+
+            std::vector<double> baseAtt(sensorsIn["attitude"].getValues());
+
+            for(unsigned i = 0;i < 3; ++i)
+              for(unsigned j = 0; j < 3; ++j)
+                baseAtt[i*3+j] = attitude(i,j);
+
+            sensorsIn["attitude"].setName ("attitude");
+            sensorsIn["attitude"].setValues (baseAtt);
+       }
+
+       void updateControlValues(map<string,ControlValues> &controlValues, AbstractSotExternalInterface * sotController)
+       {
+            const dynamicgraph::Matrix attitude = sotController->getAttitude();
+            const dynamicgraph::Vector zmp = sotController->getZmp();
+
+            std::vector<double> basEff(controlValues["baseff"].getValues());
+
+            for(unsigned i = 0;i < 3; ++i)
+              for(unsigned j = 0; j < 3; ++j)
+                basEff[i*4+j] = attitude(i,j);
+
+            controlValues["baseff"].setValues(basEff);
+       }
+
       void
       Plugin::control (OpenHRP::RobotState* rs, OpenHRP::RobotState* mc)
       {
@@ -306,8 +335,10 @@ namespace dynamicgraph
 
 	try 
 	  {
+            if(sotController_->getNewKF()) updateSensorsIn(sensorsIn_, sotController_);
 	    sotController_->nominalSetSensors(sensorsIn_);
 	    sotController_->getControl(controlValues_);
+            if(sotController_->getNewKF()) updateControlValues(controlValues_, sotController_);
 	  } 
 	catch(std::exception &e) { throw e;} 
 
